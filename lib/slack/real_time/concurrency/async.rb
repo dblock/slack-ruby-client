@@ -25,45 +25,57 @@ module Slack
           end
 
           def start_reactor(client)
+            client.logger.warn(client) { 'start_reactor' }
             Async do |task|
+              client.logger.warn([client, task].map(&:to_s).join(', ')) { 'creating async::notification' }
               @restart = ::Async::Notification.new
 
               if client.run_ping?
+                client.logger.warn([client, task].map(&:to_s).join(', ')) { 'creating ping worker' }
                 @ping_task = task.async do |subtask|
                   subtask.annotate 'client keep-alive'
 
                   # The timer task will naturally exit after the driver is set to nil.
                   while @restart
+                    client.logger.warn([client, subtask].map(&:to_s).join(', ')) { "restart is #{@restart}, sleeping #{client.websocket_ping}" }
                     subtask.sleep client.websocket_ping
+                    client.logger.warn([client, subtask].map(&:to_s).join(', ')) { "restart is #{@restart}, run_ping!" }
                     client.run_ping! if @restart
                   end
+                  client.logger.warn([client, subtask].map(&:to_s).join(', ')) { "restart is #{@restart}, terminating" }
                 end
               end
 
               while @restart
+                client.logger.warn([client, task].map(&:to_s).join(', ')) { "restart is #{@restart}, client_task is #{@client_task}" }
                 @client_task.stop if @client_task
 
                 @client_task = task.async do |subtask|
                   begin
                     subtask.annotate 'client run-loop'
+                    client.logger.warn([client, subtask].map(&:to_s).join(', ')) { "starting loop" }
                     client.run_loop
+                    client.logger.warn([client, subtask].map(&:to_s).join(', ')) { "loop ended" }
                   rescue ::Async::Wrapper::Cancelled => e
                     # Will get restarted by ping worker.
-                    client.logger.warn(subtask.to_s) { e.message }
+                    client.logger.warn([client, subtask].map(&:to_s).join(', ')) { e.message }
                   end
                 end
 
                 @restart.wait
+                client.logger.warn([client, task].map(&:to_s).join(', ')) { "@restart.wait is over" }
               end
 
+              client.logger.warn([client, task].map(&:to_s).join(', ')) { "@ping_task is #{@ping_task}" }
               @ping_task.stop if @ping_task
             end
           end
 
-          def restart_async(_client, new_url)
+          def restart_async(client, new_url)
             @url = new_url
             @last_message_at = current_time
 
+            client.logger.warn(client) { "@url=#{@url}, @last_message_at=#{@last_message_at}, restart=#{@restart}" }
             @restart.signal if @restart
           end
 
