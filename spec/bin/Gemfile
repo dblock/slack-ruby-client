@@ -1,0 +1,17 @@
+# frozen_string_literal: true
+
+source 'https://rubygems.org'
+
+group :development, :test do
+  # gem 'slack-ruby-client', path: '../..'
+  gem 'hashie'
+  gem 'faraday-mashify'
+  gem 'faraday-multipart'
+  gem 'gli'
+  gem 'faraday'
+  gem 'bundler'
+  gem 'rake'
+  gem 'rspec'
+  gem 'webmock'
+  gem 'vcr'
+end
